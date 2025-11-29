@@ -1,0 +1,77 @@
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/db";
+import UserModel from "@/models/userModel";
+
+export async function GET() {
+  return NextResponse.json({ ok: true, message: "POST to this endpoint to register users." });
+}
+
+export async function POST(req: Request) {
+  try {
+    await dbConnect();
+
+    const body = await req.json();
+
+    if (!body?.email || !body?.password || !body?.username || !body?.dob) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+
+    const existingUser = await UserModel.findOne({ email: body.email });
+    if (existingUser) {
+      return NextResponse.json({ success: false, error: "Email already registered" }, { status: 400 });
+    }
+
+    if (body.role === "artist" && (!body.experience || !body.specialization)) {
+      return NextResponse.json(
+        { success: false, error: "Experience and specialization required for artists" },
+        { status: 400 }
+      );
+    }
+
+    const user = await UserModel.create({
+      username: body.username,
+      email: body.email,
+      password: body.password,
+      mobile: body.mobile,
+      dob: body.dob,
+      role: body.role,
+      experience: body.experience,
+      specialization: body.specialization,
+      portfolio: body.portfolio,
+      bio: body.bio,
+      agree: body.agree,
+    });
+
+    const safeUser = user.toObject();
+    // isolated assertion just to remove password for response
+    delete (safeUser as { password?: unknown }).password;
+
+    return NextResponse.json({ success: true, message: "User registered", data: safeUser }, { status: 201 });
+  } catch (error) {
+    // safe narrowing — no `any`
+    if (typeof error === "object" && error !== null) {
+      const err = error as {
+        name?: string;
+        code?: number;
+        message?: string;
+        errors?: Record<string, { message?: string }>;
+      };
+
+      console.error("Registration error:", err);
+
+      if (err.name === "ValidationError" && err.errors) {
+        const messages = Object.values(err.errors).map(e => e?.message).filter(Boolean).join(", ");
+        return NextResponse.json({ success: false, error: messages }, { status: 400 });
+      }
+
+      if (err.code === 11000) {
+        return NextResponse.json({ success: false, error: "Email already exists" }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: false, error: err.message ?? "Registration failed" }, { status: 500 });
+    }
+
+    console.error("Unknown registration error:", error);
+    return NextResponse.json({ success: false, error: String(error) || "Registration failed" }, { status: 500 });
+  }
+}
