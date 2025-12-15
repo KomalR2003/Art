@@ -37,7 +37,8 @@ export default function Login() {
 
             if (res.data?.success) {
                 toast.success("Login successful");
-                const redirectTo = res.data.redirect ?? "/dashboard";
+                let redirectTo = res.data.redirect ?? "/home";
+                if (redirectTo === "/dashboard") redirectTo = "/home";
                 router.push(redirectTo);
             } else {
                 toast.error(res.data?.error ?? "Login failed");
@@ -75,10 +76,10 @@ export default function Login() {
     }
 
     return (
-        <div>
+        <div className="relative z-0">
             <Header />
 
-            <div className="lg:flex justify-evenly  mx-auto w-11/12 mt-12">
+            <div className="relative z-10 lg:flex justify-evenly  mx-auto w-11/12 mt-12">
                 <div>
                     <Image className="sm:w-[11/12] h-[500px] mb-4 lg:w-[530px] lg:h-[650px]" src={login} alt="Login Image" />
                 </div>
